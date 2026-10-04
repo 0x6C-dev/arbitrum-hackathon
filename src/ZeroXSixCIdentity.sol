@@ -1,26 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {
-    Initializable
-} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title ZeroXSixC identity registry
 /// @notice Stores a self-managed profile and a unique username for each address,
 /// plus non-transferable badges (SBT records) issued by the owner.
 /// @dev UUPS implementation behind an ERC-1967 proxy. All state lives in an ERC-7201 namespace.
 /// Profile and username writes always target `msg.sender`; the owner controls badges and upgrades.
-contract ZeroXSixCIdentity is
-    Initializable,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
+contract ZeroXSixCIdentity is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice Avatar appearance.
     /// @param heightCm Height in centimetres, `150..200`; `0` means the avatar is not set.
     /// @param color RGB color.
@@ -71,8 +61,7 @@ contract ZeroXSixCIdentity is
     uint8 public constant FIELD_AVATAR = 2;
     /// @notice Mask bit for the info blob.
     uint8 public constant FIELD_INFO = 4;
-    uint8 internal constant ALL_FIELDS =
-        FIELD_VISIBLE_NAME | FIELD_AVATAR | FIELD_INFO;
+    uint8 internal constant ALL_FIELDS = FIELD_VISIBLE_NAME | FIELD_AVATAR | FIELD_INFO;
 
     /// @notice Maximum visible name length in bytes.
     uint256 public constant MAX_VISIBLE_NAME_BYTES = 32;
@@ -168,12 +157,7 @@ contract ZeroXSixCIdentity is
     /// @param visibleName See {setVisibleName}.
     /// @param avatar See {setAvatar}.
     /// @param info See {setInfo}.
-    function setProfile(
-        uint8 mask,
-        string calldata visibleName,
-        Avatar calldata avatar,
-        bytes calldata info
-    ) external {
+    function setProfile(uint8 mask, string calldata visibleName, Avatar calldata avatar, bytes calldata info) external {
         _checkMask(mask);
 
         if (mask & FIELD_VISIBLE_NAME != 0) {
@@ -252,10 +236,7 @@ contract ZeroXSixCIdentity is
     /// @notice Creates a badge template. Templates cannot be renamed or removed.
     /// @param sbtTypeId New template id.
     /// @param name Non-empty display name.
-    function createSbtTemplate(
-        uint32 sbtTypeId,
-        string calldata name
-    ) external onlyOwner {
+    function createSbtTemplate(uint32 sbtTypeId, string calldata name) external onlyOwner {
         if (bytes(name).length == 0) {
             revert InvalidSbtTemplateName();
         }
@@ -272,11 +253,7 @@ contract ZeroXSixCIdentity is
     /// @param account Recipient; a profile is not required.
     /// @param sbtTypeId Existing template id.
     /// @param expirationDate Unix seconds, or `0` for a badge that never expires.
-    function issueSbt(
-        address account,
-        uint32 sbtTypeId,
-        uint32 expirationDate
-    ) external onlyOwner {
+    function issueSbt(address account, uint32 sbtTypeId, uint32 expirationDate) external onlyOwner {
         if (account == address(0)) {
             revert ZeroAddress();
         }
@@ -316,9 +293,7 @@ contract ZeroXSixCIdentity is
     }
 
     /// @notice Returns everything stored for `account`. Unset fields are empty or zero.
-    function getProfile(
-        address account
-    )
+    function getProfile(address account)
         external
         view
         returns (
@@ -330,26 +305,16 @@ contract ZeroXSixCIdentity is
         )
     {
         IdentityStorage storage $ = _getIdentityStorage();
-        return (
-            $.visibleNames[account],
-            $.avatars[account],
-            $.infos[account],
-            $.usernames[account],
-            $.sbts[account]
-        );
+        return ($.visibleNames[account], $.avatars[account], $.infos[account], $.usernames[account], $.sbts[account]);
     }
 
     /// @notice Returns the owner of `username`, or the zero address if it is free.
-    function usernameOwners(
-        string calldata username
-    ) external view returns (address) {
+    function usernameOwners(string calldata username) external view returns (address) {
         return _getIdentityStorage().usernameOwners[username];
     }
 
     /// @notice Returns the name of template `sbtTypeId`, or an empty string if it does not exist.
-    function sbtTemplates(
-        uint32 sbtTypeId
-    ) external view returns (string memory name) {
+    function sbtTemplates(uint32 sbtTypeId) external view returns (string memory name) {
         return _getIdentityStorage().sbtTemplates[sbtTypeId].name;
     }
 
@@ -363,9 +328,7 @@ contract ZeroXSixCIdentity is
     }
 
     function _writeAvatar(Avatar memory avatar) internal {
-        if (
-            avatar.heightCm < MIN_HEIGHT_CM || avatar.heightCm > MAX_HEIGHT_CM
-        ) {
+        if (avatar.heightCm < MIN_HEIGHT_CM || avatar.heightCm > MAX_HEIGHT_CM) {
             revert InvalidAvatarHeight(avatar.heightCm);
         }
 
@@ -386,9 +349,7 @@ contract ZeroXSixCIdentity is
         }
     }
 
-    function _isValidUsername(
-        bytes calldata username
-    ) internal pure returns (bool) {
+    function _isValidUsername(bytes calldata username) internal pure returns (bool) {
         uint256 length = username.length;
 
         if (length < MIN_USERNAME_LENGTH || length > MAX_USERNAME_LENGTH) {
@@ -409,15 +370,10 @@ contract ZeroXSixCIdentity is
     }
 
     function _sbtTemplateExists(uint32 sbtTypeId) internal view returns (bool) {
-        return
-            bytes(_getIdentityStorage().sbtTemplates[sbtTypeId].name).length !=
-            0;
+        return bytes(_getIdentityStorage().sbtTemplates[sbtTypeId].name).length != 0;
     }
 
-    function _findSbt(
-        IssuedSBT[] storage issued,
-        uint32 sbtTypeId
-    ) internal view returns (bool, uint256) {
+    function _findSbt(IssuedSBT[] storage issued, uint32 sbtTypeId) internal view returns (bool, uint256) {
         uint256 length = issued.length;
 
         for (uint256 i; i < length; ++i) {
@@ -429,15 +385,9 @@ contract ZeroXSixCIdentity is
         return (false, 0);
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function _getIdentityStorage()
-        private
-        pure
-        returns (IdentityStorage storage $)
-    {
+    function _getIdentityStorage() private pure returns (IdentityStorage storage $) {
         assembly {
             $.slot := IDENTITY_STORAGE_LOCATION
         }

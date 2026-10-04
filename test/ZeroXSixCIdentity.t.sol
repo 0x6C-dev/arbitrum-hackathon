@@ -2,12 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    ERC1967Proxy
-} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ZeroXSixCIdentity} from "../src/ZeroXSixCIdentity.sol";
 
 contract ZeroXSixCIdentityV2 is ZeroXSixCIdentity {
@@ -34,67 +30,46 @@ contract ZeroXSixCIdentityTest is Test {
 
     function setUp() public {
         ZeroXSixCIdentity implementation = new ZeroXSixCIdentity();
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(implementation),
-            abi.encodeCall(ZeroXSixCIdentity.initialize, (owner))
-        );
+        ERC1967Proxy proxy =
+            new ERC1967Proxy(address(implementation), abi.encodeCall(ZeroXSixCIdentity.initialize, (owner)));
         main = ZeroXSixCIdentity(address(proxy));
     }
 
     // Helpers
 
     function _info() internal pure returns (bytes memory) {
-        ZeroXSixCIdentity.InfoLink[]
-            memory links = new ZeroXSixCIdentity.InfoLink[](1);
+        ZeroXSixCIdentity.InfoLink[] memory links = new ZeroXSixCIdentity.InfoLink[](1);
         links[0] = ZeroXSixCIdentity.InfoLink("site", "https://example.com");
         return abi.encode("hello", links);
     }
 
-    function _avatar(
-        uint8 heightCm,
-        bytes3 color
-    ) internal pure returns (ZeroXSixCIdentity.Avatar memory) {
+    function _avatar(uint8 heightCm, bytes3 color) internal pure returns (ZeroXSixCIdentity.Avatar memory) {
         return ZeroXSixCIdentity.Avatar(heightCm, color);
     }
 
-    function _visibleName(
-        address account
-    ) internal view returns (string memory visibleName) {
-        (visibleName, , , , ) = main.getProfile(account);
+    function _visibleName(address account) internal view returns (string memory visibleName) {
+        (visibleName,,,,) = main.getProfile(account);
     }
 
-    function _avatarOf(
-        address account
-    ) internal view returns (ZeroXSixCIdentity.Avatar memory avatar) {
-        (, avatar, , , ) = main.getProfile(account);
+    function _avatarOf(address account) internal view returns (ZeroXSixCIdentity.Avatar memory avatar) {
+        (, avatar,,,) = main.getProfile(account);
     }
 
-    function _infoOf(
-        address account
-    ) internal view returns (bytes memory info) {
-        (, , info, , ) = main.getProfile(account);
+    function _infoOf(address account) internal view returns (bytes memory info) {
+        (,, info,,) = main.getProfile(account);
     }
 
-    function _usernameOf(
-        address account
-    ) internal view returns (string memory username) {
-        (, , , username, ) = main.getProfile(account);
+    function _usernameOf(address account) internal view returns (string memory username) {
+        (,,, username,) = main.getProfile(account);
     }
 
-    function _sbtsOf(
-        address account
-    ) internal view returns (ZeroXSixCIdentity.IssuedSBT[] memory issued) {
-        (, , , , issued) = main.getProfile(account);
+    function _sbtsOf(address account) internal view returns (ZeroXSixCIdentity.IssuedSBT[] memory issued) {
+        (,,,, issued) = main.getProfile(account);
     }
 
     function _fillProfile(address account) internal {
         vm.prank(account);
-        main.setProfile(
-            NAME | AVATAR | INFO,
-            "Alice",
-            _avatar(180, 0x112233),
-            _info()
-        );
+        main.setProfile(NAME | AVATAR | INFO, "Alice", _avatar(180, 0x112233), _info());
     }
 
     // Init and upgrade
@@ -124,12 +99,7 @@ contract ZeroXSixCIdentityTest is Test {
     function test_strangerCannotUpgrade() public {
         ZeroXSixCIdentityV2 next = new ZeroXSixCIdentityV2();
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, alice));
         main.upgradeToAndCall(address(next), "");
     }
 
@@ -291,61 +261,28 @@ contract ZeroXSixCIdentityTest is Test {
         _fillProfile(alice);
 
         vm.prank(alice);
-        main.setProfile(
-            NAME | INFO,
-            "Bob",
-            _avatar(0, 0),
-            abi.encode("bio", new ZeroXSixCIdentity.InfoLink[](0))
-        );
+        main.setProfile(NAME | INFO, "Bob", _avatar(0, 0), abi.encode("bio", new ZeroXSixCIdentity.InfoLink[](0)));
 
         assertEq(_visibleName(alice), "Bob");
         assertEq(_avatarOf(alice).heightCm, 180);
-        assertEq(
-            _infoOf(alice),
-            abi.encode("bio", new ZeroXSixCIdentity.InfoLink[](0))
-        );
+        assertEq(_infoOf(alice), abi.encode("bio", new ZeroXSixCIdentity.InfoLink[](0)));
     }
 
     function test_setProfileValidatesOnlyMaskedFields() public {
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidAvatarHeight.selector,
-                uint8(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidAvatarHeight.selector, uint8(0)));
         main.setProfile(NAME | AVATAR, "Alice", _avatar(0, 0), "");
     }
 
     function test_invalidMaskReverts() public {
         vm.startPrank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidMask.selector,
-                uint8(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidMask.selector, uint8(0)));
         main.setProfile(0, "Alice", _avatar(180, 0), _info());
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidMask.selector,
-                uint8(8)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidMask.selector, uint8(8)));
         main.setProfile(8, "Alice", _avatar(180, 0), _info());
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidMask.selector,
-                uint8(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidMask.selector, uint8(0)));
         main.clearProfile(0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidMask.selector,
-                uint8(0x0F)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidMask.selector, uint8(0x0F)));
         main.clearProfile(0x0F);
         vm.stopPrank();
     }
@@ -373,26 +310,11 @@ contract ZeroXSixCIdentityTest is Test {
 
     function test_avatarHeightLimits() public {
         vm.startPrank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidAvatarHeight.selector,
-                uint8(149)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidAvatarHeight.selector, uint8(149)));
         main.setAvatar(149, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidAvatarHeight.selector,
-                uint8(201)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidAvatarHeight.selector, uint8(201)));
         main.setAvatar(201, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.InvalidAvatarHeight.selector,
-                uint8(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.InvalidAvatarHeight.selector, uint8(0)));
         main.setAvatar(0, 0);
 
         main.setAvatar(150, 0);
@@ -439,16 +361,7 @@ contract ZeroXSixCIdentityTest is Test {
     }
 
     function test_usernameCharset() public {
-        string[8] memory invalid = [
-            "Alice",
-            "ali ce",
-            "ali-ce",
-            "ali.ce",
-            unicode"café",
-            "ali@e",
-            "ali\x00e",
-            "{ab}"
-        ];
+        string[8] memory invalid = ["Alice", "ali ce", "ali-ce", "ali.ce", unicode"café", "ali@e", "ali\x00e", "{ab}"];
         vm.startPrank(alice);
         for (uint256 i; i < invalid.length; ++i) {
             vm.expectRevert(ZeroXSixCIdentity.InvalidUsername.selector);
@@ -539,10 +452,8 @@ contract ZeroXSixCIdentityTest is Test {
     // SBT
 
     function test_onlyOwnerManagesSbt() public {
-        bytes memory unauthorized = abi.encodeWithSelector(
-            OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-            alice
-        );
+        bytes memory unauthorized =
+            abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, alice);
 
         vm.startPrank(alice);
         vm.expectRevert(unauthorized);
@@ -573,12 +484,7 @@ contract ZeroXSixCIdentityTest is Test {
         main.createSbtTemplate(1, "Member");
         assertEq(main.sbtTemplates(1), "Member");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.SbtTemplateExists.selector,
-                uint32(1)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.SbtTemplateExists.selector, uint32(1)));
         main.createSbtTemplate(1, "Other");
         vm.expectRevert(ZeroXSixCIdentity.InvalidSbtTemplateName.selector);
         main.createSbtTemplate(2, "");
@@ -607,12 +513,7 @@ contract ZeroXSixCIdentityTest is Test {
 
     function test_issueSbtValidation() public {
         vm.startPrank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.SbtTemplateNotFound.selector,
-                uint32(1)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.SbtTemplateNotFound.selector, uint32(1)));
         main.issueSbt(alice, 1, 0);
 
         main.createSbtTemplate(1, "Member");
@@ -661,13 +562,7 @@ contract ZeroXSixCIdentityTest is Test {
     function test_revokeMissingSbtReverts() public {
         vm.startPrank(owner);
         main.createSbtTemplate(1, "Member");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ZeroXSixCIdentity.SbtNotIssued.selector,
-                alice,
-                uint32(1)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ZeroXSixCIdentity.SbtNotIssued.selector, alice, uint32(1)));
         main.revokeSbt(alice, 1);
         vm.stopPrank();
     }
